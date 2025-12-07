@@ -1,2 +1,317 @@
 # js-calculator
 A simple calculator built with HTML, Tailwind CSS and JavaScript
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>js计算器</title>
+    <script src="https://cdn.tailwindcss.com"></script> <!--引入Tailwind CSS框架，用于快速构建样式-->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- 引入Font Awesome图标库，用于删除按钮图标 -->
+    <script>
+        // 配置Tailwind自定义主题
+        tailwind.config = {
+            theme: {
+                extend: {  //扩展默认主题
+                    colors: {
+                        primary: '#3b82f6',   //主色调
+                        secondary: '#f97316',   //辅助色
+                        dark: '#1e293b',
+                        light: '#f8fafc',
+                        gray: {    //自定义灰色系列
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            300: '#cbd5e1',
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            600: '#475569',
+                            700: '#334155',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        }
+                    },
+                    fontFamily: {      //自定义字体
+                        sans: ['Inter', 'system-ui', 'sans-serif'],   //无衬线字体序列
+                    },
+                    boxShadow: {      //自定义阴影效果
+                        'calc': '0 10px 25px -5px rgba(0,0,0,0.1),0 8px 10px -6px rgba(0,0,0,0.1)',  //计算器容器阴影
+                        'btn': '0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -1px rgba(0,0,0,0.06)',   //按钮默认阴影
+                    }
+                },
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities{   /*定义Tailwind工具类*/
+            .content-auto{  /*自动内容可见性优化*/
+                content-visibility: auto;
+            }
+            .calc-btn{      /*计算器按钮基础样式*/
+                @apply flex items-center justify-center rounded-lg transition-all duration-200 ease-in-out shadow-btn hover:shadow-lg active:scale-95 active:shadow-none;
+                /* 居中对齐、圆角、过渡动画、阴影效果、 hover和active状态变化 */
+            }
+            .number-btn{
+                @apply calc-btn bg-gray-100 text-gray-900 hover:bg-gray-200;
+            }
+            .operator-btn{
+                @apply calc-btn bg-primary text-white hover:bg-primary/90;
+            }
+            .function-btn{
+                @apply calc-btn bg-secondary text-white hover:bg-secondary/90;
+            }
+            .display-text{
+                @apply text-right font-semibold transition-all duration-300 ease-out;
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 flex items-center justify-center p-4 font-sans">
+    <div class="calculator w-full max-w-md bg-white rounded-2xl shadow-calc overflow-hidden">
+
+        <div class="display p-6 bg-gray-900 text-white">
+            <div id="history" class="display-text text-gray-400 text-lg mb-2 min-h-[24px]"></div>
+            <div id="output" class="display-text text-4xl md:text-5xl min-h-[60px] md:min-h-[72px]"></div>
+        </div>
+
+        <div class="buttons p-4 grid grid-cols-4 gap-3">
+            <!-- 第一行按钮 -->
+            <button class="function-btn text-xl" data-action="clear">C</button>
+            <button class="function-btn text-xl" data-action="delete"><i class="fa fa-backspace"></i></button>
+            <button class="function-btn text-xl" data-action="percentage">%</button>
+            <button class="operator-btn text-xl" data-action="/">÷</button>
+            <!-- 第二行按钮 -->
+            <button class="number-btn text-xl" data-number="7">7</button>
+            <button class="number-btn text-xl" data-number="8">8</button>
+            <button class="number-btn text-xl" data-number="9">9</button>
+            <button class="operator-btn text-xl" data-action="*">×</button>
+            <!-- 第三行按钮 -->
+            <button class="number-btn text-xl" data-number="4">4</button>
+            <button class="number-btn text-xl" data-number="5">5</button>
+            <button class="number-btn text-xl" data-number="6">6</button>
+            <button class="operator-btn text-xl" data-action="-">-</button>
+            <!-- 第四行按钮 -->
+            <button class="number-btn text-xl" data-number="1">1</button>
+            <button class="number-btn text-xl" data-number="2">2</button>
+            <button class="number-btn text-xl" data-number="3">3</button>
+            <button class="operator-btn text-xl" data-action="+">+</button>
+            <!-- 第五行按钮 -->
+            <button class="number-btn text-xl" data-number="0" style="grid-column: span 2;">0</button>
+            <!-- 数字0：数字按钮样式、占2列宽度、data-number标记为0 -->
+            <button class="number-btn text-xl" data-number=".">.</button>
+            <!-- 小数点：数字按钮样式、data-number标记为. -->
+            <button class="operator-btn text-xl" data-action="=">=</button>
+            <!-- 等于按钮：运算符样式、data-action标记为= -->
+        </div>
+    </div>
+
+    <script>
+        const calculator = {
+            displayValue: '0',
+            firstOperand: null,
+            waitingForSecondOperand: false,
+            operator: null,
+            history: ''
+        };
+
+        const output = document.getElementById('output');
+        const history = document.getElementById('history');
+
+        function updateDisplay() {
+            output.textContent = calculator.displayValue;
+            history.textContent = calculator.history;
+
+            output.classList.add('scale-105');
+            setTimeout(() => {
+                output.classList.remove('scale-105');
+            }, 200);
+        }
+
+        function inputDigit(digit) {
+            const { displayValue, waitingForSecondOperand } = calculator;
+
+            if (waitingForSecondOperand) {
+                calculator.displayValue = digit;
+                calculator.waitingForSecondOperand = false;
+            } else {
+                calculator.displayValue = displayValue === '0' ? digit : displayValue + digit;
+            }
+
+            updateDisplay();
+        }
+
+        function inputDecimal() {
+            if (calculator.waitingForSecondOperand) {
+                calculator.displayValue = '0.';
+                calculator.waitingForSecondOperand = false;
+                updateDisplay();
+                return;
+            }
+
+            if (!calculator.displayValue.includes('.')) {
+                calculator.displayValue += '.';
+                updateDisplay();
+            }
+        }
+
+        function handleOperator(nextOperator) {
+            const { firstOperand, displayValue, operator } = calculator;
+            const inputValue = parseFloat(displayValue);
+
+            if (operator && calculator.waitingForSecondOperand) {
+                calculator.operator = nextOperator;
+                updateDisplay();
+                return;
+            }
+
+            if (firstOperand === null && !isNaN(inputValue)) {
+                calculator.firstOperand = inputValue;
+            } else if (operator) {
+                const result = calculate(firstOperand, inputValue, operator);
+
+                calculator.history = `${firstOperand} ${getOperatorSymbol(operator)} ${inputValue} =`;
+
+                calculator.displayValue = String(result);
+                calculator.firstOperand = result;
+            }
+
+            calculator.waitingForSecondOperand = true;
+            calculator.operator = nextOperator;
+            updateDisplay();
+        }
+
+        function getOperatorSymbol(operator) {
+            const symbols = {
+                '+': '+',
+                '-': '-',
+                '*': '×',
+                '/': '/',
+                '%': '%',
+            };
+            return symbols[operator] || operator;
+        }
+
+        function calculate(firstOperand, secondOperand, operator) {
+            if (operator === '+') {
+                return firstOperand + secondOperand;
+            } else if (operator === '-') {
+                return firstOperand - secondOperand;
+            } else if (operator === '*') {
+                return firstOperand * secondOperand;
+            } else if (operator === '/') {
+                if (secondOperand === 0) {
+                    return 'Error';
+                }
+                return firstOperand / secondOperand;
+            } else if (operator === '%') {
+                return firstOperand % secondOperand;
+            }
+            return secondOperand;
+        }
+
+        function resetCalculator() {
+            calculator.displayValue = '0';
+            calculator.firstOperand = null;
+            calculator.waitingForSecondOperand = false;
+            calculator.operator = null;
+            calculator.history = '';
+            updateDisplay();
+        }
+
+        function deleteDigit() {
+            const { displayValue } = calculator;
+
+            if (displayValue.length > 1) {
+                calculator.displayValue = displayValue.slice(0, -1);
+            } else {
+                calculator.displayValue = '0';
+            }
+
+            updateDisplay();
+        }
+
+        updateDisplay();
+
+        const buttons = document.querySelectorAll('button');
+        buttons.forEach(button => {
+            button.addEventListener('click', () => {
+                const action = button.dataset.action;
+                const number = button.dataset.number;
+
+                if (number !== undefined) {
+                    inputDigit(number);
+                    return;
+                }
+
+                if (action === 'clear') {
+                    resetCalculator();
+                    return;
+                }
+
+                if (action === 'delete') {
+                    deleteDigit();
+                    return;
+                }
+
+                if (action === '.') {
+                    inputDecimal();
+                    return;
+                }
+
+                handleOperator(action);
+            });
+        });
+
+        document.addEventListener('keydown', (event) => {
+            const key = event.key;
+
+            if (/[0-9]/.test(key)) {
+                event.preventDefault();
+                inputDigit(key);
+                return;
+            }
+
+            if (key === '.') {
+                event.preventDefault();
+                inputDecimal();
+                return;
+            }
+
+            if (key === '+' || key === '-' || key === '*' || key === '/') {
+                event.preventDefault();
+                handleOperator(key);
+                return;
+            }
+
+            if (key === '=' || key === 'Enter') {
+                event.preventDefault();
+                handleOperator('=');
+                return;
+            }
+
+            if (key === 'Backspace') {
+                event.preventDefault();
+                deleteDigit();
+                return;
+            }
+
+            if (key === 'Escape') {
+                event.preventDefault();
+                resetCalculator();
+                return;
+            }
+
+            if (key === '%') {
+                event.preventDefault();
+                handleOperator('%');
+                return;
+            }
+        });
+    </script>
+
+</body>
+
+</html>
